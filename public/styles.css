@@ -1,0 +1,41 @@
+/* Custom styles for drag and drop */
+.cards-container {
+    transition: background-color 0.2s;
+}
+
+.cards-container.drag-over {
+    background-color: #e0f2fe;
+    border-radius: 8px;
+    border: 2px dashed #0ea5e9;
+}
+
+.card {
+    user-select: none;
+}
+
+.card:active {
+    cursor: grabbing;
+}
+
+.modal {
+    animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Smooth transitions */
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
