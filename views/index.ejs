@@ -1,205 +1,551 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BigO Board</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BigO Board - Kanban Task Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #e2e8f0;
+      z-index: 1000;
+      padding: 1rem 0;
+    }
+    .nav-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1e40af;
+    }
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+      list-style: none;
+    }
+    .nav-links a {
+      text-decoration: none;
+      color: #475569;
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+    .nav-links a:hover {
+      color: #1e40af;
+    }
+    .user-info {
+      color: #475569;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .chat-button {
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .chat-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+    }
+    .chat-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .auth-prompt {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      border-radius: 8px;
+      display: none;
+    }
+    .auth-prompt p {
+      color: #92400e;
+      margin: 0;
+    }
+    .auth-prompt a {
+      color: #1e40af;
+      font-weight: 600;
+      text-decoration: none;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold text-gray-800 mb-8 text-center">BigO Board</h1>
-        
-        <div class="flex gap-4 justify-center">
-            <!-- To Do Column -->
-            <div class="column flex-1 max-w-sm" data-column="todo">
-                <div class="bg-white rounded-lg shadow-md p-4">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center justify-between">
-                        <span>To Do</span>
-                        <span class="badge bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                            <%- cards.filter(c => c.column === 'todo').length %>
-                        </span>
-                    </h2>
-                    <div class="cards-container min-h-[200px] space-y-3" id="todo-cards">
-                        <% cards.filter(c => c.column === 'todo').forEach(card => { %>
-                            <div class="card bg-white border-2 border-gray-200 rounded-lg p-4 cursor-move hover:shadow-md transition-shadow" 
-                                 draggable="true" 
-                                 data-id="<%= card.id %>">
-                                <h3 class="font-semibold text-gray-800 mb-2"><%= card.title %></h3>
-                                <p class="text-sm text-gray-600 mb-3"><%= card.description %></p>
-                                <div class="flex gap-2">
-                                    <button class="edit-btn text-xs text-blue-600 hover:text-blue-800" data-id="<%= card.id %>">Edit</button>
-                                    <button class="delete-btn text-xs text-red-600 hover:text-red-800" data-id="<%= card.id %>">Delete</button>
-                                </div>
-                            </div>
-                        <% }); %>
-                    </div>
-                    <button class="add-card-btn mt-4 w-full py-2 text-gray-600 hover:text-gray-800 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors" 
-                            data-column="todo">
-                        + Add Card
-                    </button>
-                </div>
-            </div>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Navigation -->
+  <nav>
+    <div class="nav-container">
+      <div class="logo">BigO Board</div>
+      <ul class="nav-links">
+        <li id="authNavItem">
+          <a href="/login" id="loginLink" style="display: none;">Login</a>
+          <span id="userInfo" class="user-info" style="display: none;"></span>
+          <a href="#" id="logoutLink" style="display: none; color: #ef4444;">Logout</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
 
-            <!-- In Progress Column -->
-            <div class="column flex-1 max-w-sm" data-column="in-progress">
-                <div class="bg-white rounded-lg shadow-md p-4">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center justify-between">
-                        <span>In Progress</span>
-                        <span class="badge bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-sm">
-                            <%- cards.filter(c => c.column === 'in-progress').length %>
-                        </span>
-                    </h2>
-                    <div class="cards-container min-h-[200px] space-y-3" id="in-progress-cards">
-                        <% cards.filter(c => c.column === 'in-progress').forEach(card => { %>
-                            <div class="card bg-white border-2 border-gray-200 rounded-lg p-4 cursor-move hover:shadow-md transition-shadow" 
-                                 draggable="true" 
-                                 data-id="<%= card.id %>">
-                                <h3 class="font-semibold text-gray-800 mb-2"><%= card.title %></h3>
-                                <p class="text-sm text-gray-600 mb-3"><%= card.description %></p>
-                                <div class="flex gap-2">
-                                    <button class="edit-btn text-xs text-blue-600 hover:text-blue-800" data-id="<%= card.id %>">Edit</button>
-                                    <button class="delete-btn text-xs text-red-600 hover:text-red-800" data-id="<%= card.id %>">Delete</button>
-                                </div>
-                            </div>
-                        <% }); %>
-                    </div>
-                    <button class="add-card-btn mt-4 w-full py-2 text-gray-600 hover:text-gray-800 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors" 
-                            data-column="in-progress">
-                        + Add Card
-                    </button>
-                </div>
-            </div>
-
-            <!-- Done Column -->
-            <div class="column flex-1 max-w-sm" data-column="done">
-                <div class="bg-white rounded-lg shadow-md p-4">
-                    <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center justify-between">
-                        <span>Done</span>
-                        <span class="badge bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
-                            <%- cards.filter(c => c.column === 'done').length %>
-                        </span>
-                    </h2>
-                    <div class="cards-container min-h-[200px] space-y-3" id="done-cards">
-                        <% cards.filter(c => c.column === 'done').forEach(card => { %>
-                            <div class="card bg-white border-2 border-gray-200 rounded-lg p-4 cursor-move hover:shadow-md transition-shadow" 
-                                 draggable="true" 
-                                 data-id="<%= card.id %>">
-                                <h3 class="font-semibold text-gray-800 mb-2"><%= card.title %></h3>
-                                <p class="text-sm text-gray-600 mb-3"><%= card.description %></p>
-                                <div class="flex gap-2">
-                                    <button class="edit-btn text-xs text-blue-600 hover:text-blue-800" data-id="<%= card.id %>">Edit</button>
-                                    <button class="delete-btn text-xs text-red-600 hover:text-red-800" data-id="<%= card.id %>">Delete</button>
-                                </div>
-                            </div>
-                        <% }); %>
-                    </div>
-                    <button class="add-card-btn mt-4 w-full py-2 text-gray-600 hover:text-gray-800 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors" 
-                            data-column="done">
-                        + Add Card
-                    </button>
-                </div>
-            </div>
-        </div>
+  <!-- Main Content -->
+  <div class="container mx-auto px-4 py-8" style="margin-top: 80px;">
+    <div class="mb-8 text-center">
+      <h1 class="text-4xl font-bold text-gray-800 mb-2">Kanban Board</h1>
+      <p class="text-gray-600">Organize and manage your tasks efficiently</p>
     </div>
 
-    <!-- Modal for Add/Edit Card -->
-    <div id="card-modal" class="modal hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 id="modal-title" class="text-xl font-semibold mb-4">Add Card</h3>
-            <form id="card-form">
-                <input type="hidden" id="card-id" />
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                    <input type="text" id="card-title" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+    <div class="flex gap-4 justify-center flex-wrap">
+      <!-- To Do Column -->
+      <div class="column flex-1 max-w-sm" data-column="todo">
+        <div class="bg-white rounded-lg shadow-md p-4">
+          <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center justify-between">
+            <span>To Do</span>
+            <span class="badge bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+              <%- cards.filter(c => c.column === 'todo').length %>
+            </span>
+          </h2>
+          <div class="cards-container min-h-[200px] space-y-3" id="todo-cards">
+            <% cards.filter(c => c.column === 'todo').forEach(card => { %>
+              <div
+                class="card bg-white border-2 border-gray-200 rounded-lg p-4 cursor-move hover:shadow-md transition-shadow"
+                draggable="true"
+                data-id="<%= card.id %>"
+              >
+                <h3 class="font-semibold text-gray-800 mb-2"><%= card.title %></h3>
+                <p class="text-sm text-gray-600 mb-3"><%= card.description %></p>
+                <div class="flex gap-2">
+                  <button
+                    class="edit-btn text-xs text-blue-600 hover:text-blue-800"
+                    data-id="<%= card.id %>"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="delete-btn text-xs text-red-600 hover:text-red-800"
+                    data-id="<%= card.id %>"
+                  >
+                    Delete
+                  </button>
                 </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea id="card-description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3"></textarea>
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Column</label>
-                    <select id="card-column" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="todo">To Do</option>
-                        <option value="in-progress">In Progress</option>
-                        <option value="done">Done</option>
-                    </select>
-                </div>
-                <div class="flex gap-2 justify-end">
-                    <button type="button" id="cancel-btn" class="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
-                </div>
-            </form>
+              </div>
+            <% }); %>
+          </div>
+          <button
+            class="add-card-btn mt-4 w-full py-2 text-gray-600 hover:text-gray-800 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+            data-column="todo"
+          >
+            + Add Card
+          </button>
         </div>
+      </div>
+
+      <!-- In Progress Column -->
+      <div class="column flex-1 max-w-sm" data-column="in-progress">
+        <div class="bg-white rounded-lg shadow-md p-4">
+          <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center justify-between">
+            <span>In Progress</span>
+            <span class="badge bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-sm">
+              <%- cards.filter(c => c.column === 'in-progress').length %>
+            </span>
+          </h2>
+          <div class="cards-container min-h-[200px] space-y-3" id="in-progress-cards">
+            <% cards.filter(c => c.column === 'in-progress').forEach(card => { %>
+              <div
+                class="card bg-white border-2 border-gray-200 rounded-lg p-4 cursor-move hover:shadow-md transition-shadow"
+                draggable="true"
+                data-id="<%= card.id %>"
+              >
+                <h3 class="font-semibold text-gray-800 mb-2"><%= card.title %></h3>
+                <p class="text-sm text-gray-600 mb-3"><%= card.description %></p>
+                <div class="flex gap-2">
+                  <button
+                    class="edit-btn text-xs text-blue-600 hover:text-blue-800"
+                    data-id="<%= card.id %>"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="delete-btn text-xs text-red-600 hover:text-red-800"
+                    data-id="<%= card.id %>"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+          <button
+            class="add-card-btn mt-4 w-full py-2 text-gray-600 hover:text-gray-800 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+            data-column="in-progress"
+          >
+            + Add Card
+          </button>
+        </div>
+      </div>
+
+      <!-- Done Column -->
+      <div class="column flex-1 max-w-sm" data-column="done">
+        <div class="bg-white rounded-lg shadow-md p-4">
+          <h2 class="text-xl font-semibold text-gray-700 mb-4 flex items-center justify-between">
+            <span>Done</span>
+            <span class="badge bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+              <%- cards.filter(c => c.column === 'done').length %>
+            </span>
+          </h2>
+          <div class="cards-container min-h-[200px] space-y-3" id="done-cards">
+            <% cards.filter(c => c.column === 'done').forEach(card => { %>
+              <div
+                class="card bg-white border-2 border-gray-200 rounded-lg p-4 cursor-move hover:shadow-md transition-shadow"
+                draggable="true"
+                data-id="<%= card.id %>"
+              >
+                <h3 class="font-semibold text-gray-800 mb-2"><%= card.title %></h3>
+                <p class="text-sm text-gray-600 mb-3"><%= card.description %></p>
+                <div class="flex gap-2">
+                  <button
+                    class="edit-btn text-xs text-blue-600 hover:text-blue-800"
+                    data-id="<%= card.id %>"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    class="delete-btn text-xs text-red-600 hover:text-red-800"
+                    data-id="<%= card.id %>"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+          <button
+            class="add-card-btn mt-4 w-full py-2 text-gray-600 hover:text-gray-800 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
+            data-column="done"
+          >
+            + Add Card
+          </button>
+        </div>
+      </div>
     </div>
 
-    <script src="/app.js"></script>
-
-    <!-- Orbit Chat Widget -->
-    <div id="chat-widget" class="fixed bottom-4 right-4 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 hidden z-50">
-        <!-- Chat Header -->
-        <div class="bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                </svg>
-                <h3 class="font-semibold">AI Assistant</h3>
-            </div>
-            <button id="close-chat" class="text-white hover:text-gray-200 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
+    <!-- Chat Section -->
+    <div class="mt-8 max-w-2xl mx-auto">
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="text-xl font-semibold text-gray-800">Need Help?</h3>
+            <p class="text-sm text-gray-600 mt-1">Chat with our AI assistant powered by Quadrillian</p>
+          </div>
+          <button class="chat-button" id="chatButton" onclick="openAuthenticatedChat()">
+            Open Chat
+          </button>
         </div>
-        
-        <!-- Chat Messages -->
-        <div id="chat-messages" class="p-4 h-96 overflow-y-auto bg-gray-50">
-            <div class="text-center text-gray-500 text-sm mb-4">
-                <p>👋 Hi! I can help you manage your board.</p>
-                <p class="mt-2">Try asking:</p>
-                <ul class="text-left mt-2 space-y-1 ml-8">
-                    <li>• "Move 'Fix bug' to In Progress"</li>
-                    <li>• "How many tasks are in Done?"</li>
-                    <li>• "Create a task called 'Review code'"</li>
-                </ul>
-            </div>
+        <div id="authPrompt" class="auth-prompt">
+          <p><strong>🔒 Authentication Required:</strong> Please <a href="/login">login</a> to access chat.</p>
         </div>
-        
-        <!-- Chat Input -->
-        <div class="p-4 border-t bg-white rounded-b-lg">
-            <div class="flex gap-2">
-                <input 
-                    type="text" 
-                    id="chat-input" 
-                    placeholder="Ask me to move tasks, create cards, etc..." 
-                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                <button 
-                    id="send-chat" 
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                    </svg>
-                </button>
-            </div>
-            <p class="text-xs text-gray-500 mt-2">Powered by Orbit AI</p>
-        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Chat Toggle Button -->
-    <button 
-        id="chat-toggle" 
-        class="fixed bottom-4 right-4 bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg hover:bg-blue-700 flex items-center justify-center transition-all z-40"
-        title="Open AI Assistant"
-    >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-        </svg>
-    </button>
+  <!-- Modal for Add/Edit Card -->
+  <div
+    id="card-modal"
+    class="modal hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+  >
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+      <h3 id="modal-title" class="text-xl font-semibold mb-4">Add Card</h3>
+      <form id="card-form">
+        <input type="hidden" id="card-id" />
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Title</label>
+          <input
+            type="text"
+            id="card-title"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+          <textarea
+            id="card-description"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            rows="3"
+          ></textarea>
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Column</label>
+          <select
+            id="card-column"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="todo">To Do</option>
+            <option value="in-progress">In Progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button
+            type="button"
+            id="cancel-btn"
+            class="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-    <script src="/orbit-chat.js"></script>
+  <!-- Board logic -->
+  <script src="/app.js"></script>
+  
+  <!-- Quadrillian Chat Integration -->
+  <script>
+    let chatConfig = null;
+    let sdkLoaded = false;
+    let currentUser = null;
+
+    // Check authentication status
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          currentUser = data.user;
+          updateAuthUI(true);
+        } else {
+          currentUser = null;
+          updateAuthUI(false);
+        }
+      } catch (err) {
+        console.error('Auth check error:', err);
+        currentUser = null;
+        updateAuthUI(false);
+      }
+    }
+
+    // Update UI based on authentication status
+    function updateAuthUI(isAuthenticated) {
+      const loginLink = document.getElementById('loginLink');
+      const logoutLink = document.getElementById('logoutLink');
+      const userInfo = document.getElementById('userInfo');
+      const chatButton = document.getElementById('chatButton');
+      const authPrompt = document.getElementById('authPrompt');
+
+      if (isAuthenticated && currentUser) {
+        loginLink.style.display = 'none';
+        logoutLink.style.display = 'inline';
+        userInfo.style.display = 'inline';
+        userInfo.textContent = `👤 ${currentUser.name}`;
+        chatButton.disabled = false;
+        authPrompt.style.display = 'none';
+      } else {
+        loginLink.style.display = 'inline';
+        logoutLink.style.display = 'none';
+        userInfo.style.display = 'none';
+        chatButton.disabled = true;
+        authPrompt.style.display = 'block';
+      }
+    }
+
+    // Logout handler
+    async function handleLogout() {
+      try {
+        const response = await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (response.ok) {
+          currentUser = null;
+          updateAuthUI(false);
+        }
+      } catch (err) {
+        console.error('Logout error:', err);
+      }
+    }
+
+    // Attach logout handler
+    document.addEventListener('DOMContentLoaded', () => {
+      const logoutLink = document.getElementById('logoutLink');
+      if (logoutLink) {
+        logoutLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          handleLogout();
+        });
+      }
+    });
+
+    // Load configuration from backend
+    async function loadConfig() {
+      try {
+        const response = await fetch('/api/chat/config');
+        if (response.ok) {
+          chatConfig = await response.json();
+          console.log('Chat config loaded:', chatConfig);
+          
+          if (chatConfig.base_url && !sdkLoaded) {
+            const sdkScript = document.createElement('script');
+            sdkScript.src = `${chatConfig.base_url}/js/chat/sdk.js`;
+            sdkScript.async = true;
+            sdkScript.onload = () => {
+              sdkLoaded = true;
+              console.log('Quadrillian SDK loaded from:', chatConfig.base_url);
+            };
+            sdkScript.onerror = () => {
+              console.error('Failed to load SDK from:', chatConfig.base_url);
+              const fallbackScript = document.createElement('script');
+              fallbackScript.src = 'https://eng.quadrillian.com/js/chat/sdk.js';
+              fallbackScript.async = true;
+              fallbackScript.onload = () => {
+                sdkLoaded = true;
+                console.log('Quadrillian SDK loaded from production');
+              };
+              document.head.appendChild(fallbackScript);
+            };
+            document.head.appendChild(sdkScript);
+          } else if (!chatConfig.base_url) {
+            const sdkScript = document.createElement('script');
+            sdkScript.src = 'https://eng.quadrillian.com/js/chat/sdk.js';
+            sdkScript.async = true;
+            sdkScript.onload = () => {
+              sdkLoaded = true;
+              console.log('Quadrillian SDK loaded from production');
+            };
+            document.head.appendChild(sdkScript);
+          }
+        } else {
+          console.error('Failed to load chat config');
+        }
+      } catch (err) {
+        console.error('Error loading config:', err);
+      }
+    }
+
+    async function openAuthenticatedChat() {
+      try {
+        if (!currentUser) {
+          alert('Please login to access chat.');
+          window.location.href = '/login';
+          return;
+        }
+
+        if (!chatConfig) {
+          await loadConfig();
+        }
+
+        const response = await fetch('/api/chat/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            alert('Session expired. Please login again.');
+            window.location.href = '/login';
+            return;
+          }
+          console.error('Failed to get JWT from /api/chat/auth');
+          alert('Unable to authenticate. Please try again.');
+          return;
+        }
+
+        const data = await response.json();
+        const jwtToken = data.jwt;
+        const topicExternalKey = data.topic_external_key;
+
+        if (!jwtToken || !topicExternalKey) {
+          console.error('Missing JWT or topic_external_key');
+          alert('Authentication failed. Please try again.');
+          return;
+        }
+
+        let attempts = 0;
+        while (typeof Quadrillian === 'undefined' && attempts < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+
+        if (typeof Quadrillian === 'undefined') {
+          console.error('Quadrillian SDK not loaded yet.');
+          alert('Chat widget is loading. Please wait a moment and try again.');
+          return;
+        }
+
+        const baseUrl = chatConfig ? chatConfig.base_url : 'https://eng.quadrillian.com';
+        
+        if (Quadrillian.setBaseUrl) {
+          Quadrillian.setBaseUrl(baseUrl);
+          console.log('Quadrillian base URL set to:', baseUrl);
+        }
+
+        const chatConfig_obj = {
+          workspace_id: String(chatConfig ? chatConfig.workspace_id : '456'),
+          topic_external_key: topicExternalKey,
+          jwt_token: jwtToken,
+          ai_user_id: chatConfig ? chatConfig.ai_user_id : undefined,
+          position: "bottom-right",
+          width: 400,
+          height: 600
+        };
+
+        if (baseUrl && baseUrl !== 'https://eng.quadrillian.com') {
+          chatConfig_obj.base_url = baseUrl;
+        }
+
+        console.log('Creating chat window with config:', {
+          workspace_id: chatConfig_obj.workspace_id,
+          topic_external_key: chatConfig_obj.topic_external_key,
+          base_url: baseUrl,
+          has_jwt: !!chatConfig_obj.jwt_token
+        });
+
+        Quadrillian.createChatWindow(chatConfig_obj);
+        console.log(`✅ Chat opened for user: ${data.user?.name || 'Unknown'} (Topic: ${topicExternalKey})`);
+      } catch (err) {
+        console.error('❌ Error opening chat:', err);
+        alert('Unable to open chat. Please check the browser console for details.');
+      }
+    }
+
+    // Load config and check auth when page loads
+    loadConfig();
+    checkAuth();
+  </script>
 </body>
 </html>
-

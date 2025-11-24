@@ -1,20 +1,29 @@
 /* Custom styles for drag and drop */
 .cards-container {
     transition: background-color 0.2s;
+    min-height: 200px;
 }
 
 .cards-container.drag-over {
     background-color: #e0f2fe;
     border-radius: 8px;
     border: 2px dashed #0ea5e9;
+    padding: 0.5rem;
 }
 
 .card {
     user-select: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .card:active {
     cursor: grabbing;
+    transform: scale(0.98);
 }
 
 .modal {
@@ -24,18 +33,35 @@
 @keyframes fadeIn {
     from {
         opacity: 0;
+        transform: scale(0.95);
     }
     to {
         opacity: 1;
+        transform: scale(1);
     }
 }
 
-/* Smooth transitions */
-.card {
-    transition: transform 0.2s, box-shadow 0.2s;
+/* Enhanced button styles */
+.edit-btn, .delete-btn {
+    transition: all 0.2s;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
 }
 
-.card:hover {
-    transform: translateY(-2px);
+.edit-btn:hover {
+    background-color: #eff6ff;
 }
+
+.delete-btn:hover {
+    background-color: #fef2f2;
+}
+
+.add-card-btn {
+    transition: all 0.2s;
+}
+
+.add-card-btn:hover {
+    background-color: #f8fafc;
+}
+
 
