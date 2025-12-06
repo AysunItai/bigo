@@ -102,11 +102,6 @@
     <div class="nav-container">
       <div class="logo">BigO Board</div>
       <ul class="nav-links">
-        <li id="authNavItem">
-          <a href="/login" id="loginLink" style="display: none;">Login</a>
-          <span id="userInfo" class="user-info" style="display: none;"></span>
-          <a href="#" id="logoutLink" style="display: none; color: #ef4444;">Logout</a>
-        </li>
       </ul>
     </div>
   </nav>
@@ -264,9 +259,6 @@
             Open Chat
           </button>
         </div>
-        <div id="authPrompt" class="auth-prompt">
-          <p><strong>🔒 Authentication Required:</strong> Please <a href="/login">login</a> to access chat.</p>
-        </div>
       </div>
     </div>
   </div>
@@ -334,79 +326,6 @@
   <script>
     let chatConfig = null;
     let sdkLoaded = false;
-    let currentUser = null;
-
-    // Check authentication status
-    async function checkAuth() {
-      try {
-        const response = await fetch('/api/auth/me', {
-          credentials: 'include'
-        });
-        if (response.ok) {
-          const data = await response.json();
-          currentUser = data.user;
-          updateAuthUI(true);
-        } else {
-          currentUser = null;
-          updateAuthUI(false);
-        }
-      } catch (err) {
-        console.error('Auth check error:', err);
-        currentUser = null;
-        updateAuthUI(false);
-      }
-    }
-
-    // Update UI based on authentication status
-    function updateAuthUI(isAuthenticated) {
-      const loginLink = document.getElementById('loginLink');
-      const logoutLink = document.getElementById('logoutLink');
-      const userInfo = document.getElementById('userInfo');
-      const chatButton = document.getElementById('chatButton');
-      const authPrompt = document.getElementById('authPrompt');
-
-      if (isAuthenticated && currentUser) {
-        loginLink.style.display = 'none';
-        logoutLink.style.display = 'inline';
-        userInfo.style.display = 'inline';
-        userInfo.textContent = `👤 ${currentUser.name}`;
-        chatButton.disabled = false;
-        authPrompt.style.display = 'none';
-      } else {
-        loginLink.style.display = 'inline';
-        logoutLink.style.display = 'none';
-        userInfo.style.display = 'none';
-        chatButton.disabled = true;
-        authPrompt.style.display = 'block';
-      }
-    }
-
-    // Logout handler
-    async function handleLogout() {
-      try {
-        const response = await fetch('/api/auth/logout', {
-          method: 'POST',
-          credentials: 'include'
-        });
-        if (response.ok) {
-          currentUser = null;
-          updateAuthUI(false);
-        }
-      } catch (err) {
-        console.error('Logout error:', err);
-      }
-    }
-
-    // Attach logout handler
-    document.addEventListener('DOMContentLoaded', () => {
-      const logoutLink = document.getElementById('logoutLink');
-      if (logoutLink) {
-        logoutLink.addEventListener('click', (e) => {
-          e.preventDefault();
-          handleLogout();
-        });
-      }
-    });
 
     // Load configuration from backend
     async function loadConfig() {
@@ -427,22 +346,22 @@
             sdkScript.onerror = () => {
               console.error('Failed to load SDK from:', chatConfig.base_url);
               const fallbackScript = document.createElement('script');
-              fallbackScript.src = 'https://eng.quadrillian.com/js/chat/sdk.js';
+              fallbackScript.src = 'http://localhost:8080/js/chat/sdk.js';
               fallbackScript.async = true;
               fallbackScript.onload = () => {
                 sdkLoaded = true;
-                console.log('Quadrillian SDK loaded from production');
+                console.log('Quadrillian SDK loaded from localhost');
               };
               document.head.appendChild(fallbackScript);
             };
             document.head.appendChild(sdkScript);
           } else if (!chatConfig.base_url) {
             const sdkScript = document.createElement('script');
-            sdkScript.src = 'https://eng.quadrillian.com/js/chat/sdk.js';
+            sdkScript.src = 'http://localhost:8080/js/chat/sdk.js';
             sdkScript.async = true;
             sdkScript.onload = () => {
               sdkLoaded = true;
-              console.log('Quadrillian SDK loaded from production');
+              console.log('Quadrillian SDK loaded from localhost');
             };
             document.head.appendChild(sdkScript);
           }
@@ -456,12 +375,8 @@
 
     async function openAuthenticatedChat() {
       try {
-        if (!currentUser) {
-          alert('Please login to access chat.');
-          window.location.href = '/login';
-          return;
-        }
-
+        console.log('Opening chat...');
+        
         if (!chatConfig) {
           await loadConfig();
         }
@@ -470,16 +385,12 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
-          },
-          credentials: 'include'
+          }
         });
+        
+        console.log('Auth response status:', response.status);
 
         if (!response.ok) {
-          if (response.status === 401) {
-            alert('Session expired. Please login again.');
-            window.location.href = '/login';
-            return;
-          }
           console.error('Failed to get JWT from /api/chat/auth');
           alert('Unable to authenticate. Please try again.');
           return;
@@ -507,7 +418,7 @@
           return;
         }
 
-        const baseUrl = chatConfig ? chatConfig.base_url : 'https://eng.quadrillian.com';
+        const baseUrl = chatConfig ? chatConfig.base_url : 'http://localhost:8080';
         
         if (Quadrillian.setBaseUrl) {
           Quadrillian.setBaseUrl(baseUrl);
@@ -515,18 +426,15 @@
         }
 
         const chatConfig_obj = {
-          workspace_id: String(chatConfig ? chatConfig.workspace_id : '456'),
+          workspace_id: String(chatConfig ? chatConfig.workspace_id : '4394'),
           topic_external_key: topicExternalKey,
           jwt_token: jwtToken,
           ai_user_id: chatConfig ? chatConfig.ai_user_id : undefined,
+          base_url: baseUrl,
           position: "bottom-right",
           width: 400,
           height: 600
         };
-
-        if (baseUrl && baseUrl !== 'https://eng.quadrillian.com') {
-          chatConfig_obj.base_url = baseUrl;
-        }
 
         console.log('Creating chat window with config:', {
           workspace_id: chatConfig_obj.workspace_id,
@@ -536,16 +444,15 @@
         });
 
         Quadrillian.createChatWindow(chatConfig_obj);
-        console.log(`✅ Chat opened for user: ${data.user?.name || 'Unknown'} (Topic: ${topicExternalKey})`);
+        console.log(`✅ Chat opened (Topic: ${topicExternalKey})`);
       } catch (err) {
         console.error('❌ Error opening chat:', err);
         alert('Unable to open chat. Please check the browser console for details.');
       }
     }
 
-    // Load config and check auth when page loads
+    // Load config when page loads
     loadConfig();
-    checkAuth();
   </script>
 </body>
 </html>

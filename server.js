@@ -7,8 +7,6 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const session = require('express-session');
-const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const fetch = require('node-fetch'); // for calling gotoOrbit APIs
 
@@ -27,25 +25,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
-// Session configuration
-if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
-  console.error('❌ SESSION_SECRET must be set in production environment');
-  process.exit(1);
-}
-
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
-  resave: false,
-  saveUninitialized: false,
-  name: 'connect.sid',
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-  }
-}));
-
 // Enable CORS
 app.use(cors({
   origin: true,
@@ -57,14 +36,18 @@ app.use(cors({
 // ============================================================================
 
 const QuadrillianConfig = {
-  workspace_id: Number(process.env.QUAD_WORKSPACE_ID),
+  workspace_id: Number(process.env.QUAD_WORKSPACE_ID) || 4398,
   workspace_secret: process.env.QUAD_WORKSPACE_SECRET,
-  ai_user_id: Number(process.env.QUAD_AI_USER_ID) || undefined,
-  base_url: process.env.QUAD_BASE_URL || 'https://eng.quadrillian.com'
+  project_id: Number(process.env.QUAD_PROJECT_ID) || 22,
+  ai_user_id: Number(process.env.QUAD_AI_USER_ID) || 2,
+  user_id: Number(process.env.QUAD_USER_ID) || 996,
+  user_email: process.env.QUAD_USER_EMAIL || 'testtest2@gmail.com',
+  user_name: process.env.QUAD_USER_NAME || 'Test user',
+  base_url: process.env.QUAD_BASE_URL || 'http://localhost:8080'
 };
 
-if (!QuadrillianConfig.workspace_id || !QuadrillianConfig.workspace_secret) {
-  console.warn('⚠️  QUAD_WORKSPACE_ID or QUAD_WORKSPACE_SECRET missing in .env - Chat features will be disabled');
+if (!QuadrillianConfig.workspace_secret) {
+  console.warn('⚠️  QUAD_WORKSPACE_SECRET missing in .env - Chat features will be disabled');
 }
 
 // ============================================================================
@@ -93,7 +76,7 @@ function buildGotoOrbitEnvJson(req) {
     bigo_env: process.env.NODE_ENV || 'development',
     bigo_base_url: process.env.BIGO_BASE_URL || '',
     // Example: include current user id so macros can attribute changes
-    current_user_id: req.user ? req.user.id : null
+    current_user_id: QuadrillianConfig.user_id
     // You can add real API keys / DB URLs later if needed:
     // api_key: process.env.YOUR_API_KEY,
     // database_url: process.env.DATABASE_URL,
@@ -118,24 +101,8 @@ async function logMacroRejection(data) {
 }
 
 // ============================================================================
-// In-memory users & cards
+// In-memory cards
 // ============================================================================
-
-// In-memory user store (replace with database in production)
-const users = [
-  {
-    id: 'user_1',
-    email: 'john@example.com',
-    name: 'John Doe',
-    password: bcrypt.hashSync('password123', 10)
-  },
-  {
-    id: 'user_2',
-    email: 'jane@example.com',
-    name: 'Jane Smith',
-    password: bcrypt.hashSync('password123', 10)
-  }
-];
 
 // In-memory data store for kanban cards
 let cards = [
@@ -145,18 +112,6 @@ let cards = [
 ];
 
 let nextId = 4;
-
-// ============================================================================
-// Authentication Middleware
-// ============================================================================
-
-const requireAuth = (req, res, next) => {
-  if (req.session && req.session.user) {
-    req.user = req.session.user;
-    return next();
-  }
-  res.status(401).json({ error: 'Authentication required' });
-};
 
 // ============================================================================
 // View Routes
@@ -171,22 +126,14 @@ app.use((req, res, next) => {
 
 
 app.get('/', (req, res) => {
-  res.render('index', { cards, user: req.session?.user || null });
-});
-
-app.get('/login', (req, res) => {
-  // Redirect if already logged in
-  if (req.session && req.session.user) {
-    return res.redirect('/');
-  }
-  res.render('login');
+  res.render('index', { cards });
 });
 
 // ---------------------------------------------------------------------------
 // gotoOrbit Approval Form View (UI for user to approve/reject macro)
 // ---------------------------------------------------------------------------
 
-app.get('/gotoorbit/approve', requireAuth, (req, res) => {
+app.get('/gotoorbit/approve', (req, res) => {
   const { macro_string, project_id, message_id } = req.query;
 
   if (!macro_string) {
@@ -199,71 +146,10 @@ app.get('/gotoorbit/approve', requireAuth, (req, res) => {
   }
 
   res.render('gotoorbit-approve', {
-    user: req.session?.user || null,
     macro_string,
     project_id: effectiveProjectId,
     message_id: message_id || ''
   });
-});
-
-// ============================================================================
-// Authentication API Routes
-// ============================================================================
-
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    const user = users.find(u => u.email === email);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    req.session.user = {
-      id: user.id,
-      email: user.email,
-      name: user.name
-    };
-
-    console.log(`✅ Login successful for user: ${user.email}`);
-    res.json({
-      success: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name
-      }
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      console.error('Logout error:', err);
-      return res.status(500).json({ error: 'Logout failed' });
-    }
-    res.clearCookie('connect.sid');
-    res.json({ success: true });
-  });
-});
-
-app.get('/api/auth/me', (req, res) => {
-  if (req.session && req.session.user) {
-    return res.json({ user: req.session.user });
-  }
-  res.status(401).json({ error: 'Not authenticated' });
 });
 
 // ============================================================================
@@ -272,29 +158,29 @@ app.get('/api/auth/me', (req, res) => {
 
 // Get chat configuration (public endpoint)
 app.get('/api/chat/config', (req, res) => {
-  const baseUrl = QuadrillianConfig.base_url || 'https://eng.quadrillian.com';
+  const baseUrl = QuadrillianConfig.base_url || 'http://localhost:8080';
   res.json({
     workspace_id: QuadrillianConfig.workspace_id,
+    project_id: QuadrillianConfig.project_id,
     ai_user_id: QuadrillianConfig.ai_user_id,
     base_url: baseUrl
   });
 });
 
-// Generate JWT for Quadrillian chat (protected endpoint)
-app.post('/api/chat/auth', requireAuth, (req, res) => {
+// Generate JWT for Quadrillian chat (public endpoint - no auth required)
+app.post('/api/chat/auth', (req, res) => {
   try {
-    if (!QuadrillianConfig.workspace_id || !QuadrillianConfig.workspace_secret) {
+    if (!QuadrillianConfig.workspace_secret) {
       return res.status(503).json({ error: 'Chat service not configured' });
     }
 
-    const user = req.user;
     const nowSeconds = Math.floor(Date.now() / 1000);
 
     const payload = {
       workspace_id: QuadrillianConfig.workspace_id,
-      external_user_id: user.id,
-      email: user.email,
-      name: user.name,
+      external_user_id: String(QuadrillianConfig.user_id),
+      email: QuadrillianConfig.user_email,
+      name: QuadrillianConfig.user_name,
       iat: nowSeconds,
       exp: nowSeconds + 60 * 60 * 24, // 24 hours
     };
@@ -303,16 +189,11 @@ app.post('/api/chat/auth', requireAuth, (req, res) => {
       algorithm: 'HS256',
     });
 
-    const topic_external_key = `user-${user.id}`;
+    const topic_external_key = `/project/${QuadrillianConfig.project_id}`;
 
     res.json({
       jwt: token,
-      topic_external_key: topic_external_key,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name
-      }
+      topic_external_key: topic_external_key
     });
   } catch (err) {
     console.error('Auth error:', err);
@@ -393,7 +274,7 @@ app.post('/gotoorbit/api/approve-ai', async (req, res) => {
  * Called when the user rejects an AI macro.
  * Body: { macro_string, project_id?, message_id? }
  */
-app.post('/gotoorbit/api/reject-ai', requireAuth, async (req, res) => {
+app.post('/gotoorbit/api/reject-ai', async (req, res) => {
   const { macro_string, project_id, message_id } = req.body;
 
   if (!macro_string) {
@@ -422,7 +303,7 @@ app.post('/gotoorbit/api/reject-ai', requireAuth, async (req, res) => {
       project_id: effectiveProjectId,
       message_id,
       rejected_at: new Date().toISOString(),
-      user_id: req.user ? req.user.id : null
+      user_id: QuadrillianConfig.user_id
     });
 
     const env_json = buildGotoOrbitEnvJson(req);
@@ -635,9 +516,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   DELETE /api/cards/:id`);
   console.log(`   GET    /api/board/stats`);
   console.log(`   GET    /api/board/columns`);
-  console.log(`   POST   /api/auth/login`);
-  console.log(`   POST   /api/auth/logout`);
-  console.log(`   GET    /api/auth/me`);
   console.log(`   GET    /api/chat/config`);
   console.log(`   POST   /api/chat/auth`);
   console.log(`   GET    /gotoorbit/approve`);
