@@ -152,6 +152,31 @@ app.get('/gotoorbit/approve', (req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// gotoOrbit MCP Tool Approval Form View (UI for user to approve/reject MCP tool)
+// ---------------------------------------------------------------------------
+
+app.get('/gotoorbit/mcp-approve', (req, res) => {
+  const { approval_key, project_id, message_id, tool_name, tool_args } = req.query;
+
+  if (!approval_key) {
+    return res.status(400).send('Missing approval_key');
+  }
+
+  const effectiveProjectId = project_id || GOTOORBIT_PROJECT_ID;
+  if (!effectiveProjectId) {
+    return res.status(400).send('Missing project_id');
+  }
+
+  res.render('gotoorbit-mcp-approve', {
+    approval_key,
+    project_id: effectiveProjectId,
+    message_id: message_id || '',
+    tool_name: tool_name || 'MCP Tool',
+    tool_args: tool_args ? JSON.parse(tool_args) : {}
+  });
+});
+
 // ============================================================================
 // Quadrillian Chat API Routes
 // ============================================================================
@@ -342,6 +367,132 @@ app.post('/gotoorbit/api/reject-ai', async (req, res) => {
   }
 });
 
+/**
+ * POST /gotoorbit/api/approve-mcp-tool
+ * Approve MCP tool execution
+ * This endpoint is kept for backward compatibility.
+ * It calls the internal execute-mcp-tool endpoint.
+ * User's app should implement this endpoint and call Orbit's /api/project/execute-mcp-tool
+ */
+app.post('/gotoorbit/api/approve-mcp-tool', async (req, res) => {
+  try {
+    const { approval_key, project_id } = req.body;
+
+    if (!approval_key) {
+      return res.status(400).json({ status: 'error', raw: { message: 'approval_key is required' } });
+    }
+
+    const effectiveProjectId = project_id || GOTOORBIT_PROJECT_ID;
+    if (!effectiveProjectId) {
+      return res.status(400).json({ status: 'error', raw: { message: 'project_id missing (body or GOTOORBIT_PROJECT_ID)' } });
+    }
+
+    console.log('✅ [gotoOrbit] approve-mcp-tool called:', {
+      approval_key: approval_key.substring(0, 20) + '...',
+      project_id: effectiveProjectId
+    });
+
+    // Call the internal execute-mcp-tool endpoint
+    // This allows user's app to implement /gotoorbit/api/approve-mcp-tool
+    // and call Orbit's /api/project/execute-mcp-tool (similar to execute-macro pattern)
+    try {
+      const response = await fetch(`http://127.0.0.1:${PORT}/api/project/execute-mcp-tool`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: req.headers.cookie || ''
+        },
+        body: JSON.stringify({
+          approval_key,
+          project_id: effectiveProjectId,
+          env_json: {} // Empty env_json - will use stateContext.env
+        })
+      });
+
+      const result = await response.json().catch(() => ({
+        status: 'error',
+        raw: { message: 'Failed to parse execute-mcp-tool response' }
+      }));
+
+      if (!response.ok) {
+        return res.status(response.status).json(result);
+      }
+
+      res.json(result);
+    } catch (fetchError) {
+      // If internal call fails, return error
+      console.error('❌ [gotoOrbit] Internal execute-mcp-tool call failed:', fetchError);
+      if (fetchError.response) {
+        return res.status(fetchError.response.status).json(fetchError.response.data);
+      }
+      throw fetchError;
+    }
+  } catch (error) {
+    console.error('❌ [gotoOrbit] Error approving MCP tool:', error);
+    res.status(500).json({ status: 'error', raw: { message: 'Failed to approve tool execution', error: error.message } });
+  }
+});
+
+/**
+ * POST /gotoorbit/api/reject-mcp-tool
+ * Reject MCP tool execution
+ * This endpoint is kept for backward compatibility.
+ * User's app should implement this endpoint and call Orbit's /api/project/reject-mcp-tool
+ */
+app.post('/gotoorbit/api/reject-mcp-tool', async (req, res) => {
+  try {
+    const { approval_key, project_id } = req.body;
+
+    if (!approval_key) {
+      return res.status(400).json({ status: 'error', raw: { message: 'approval_key is required' } });
+    }
+
+    const effectiveProjectId = project_id || GOTOORBIT_PROJECT_ID;
+    if (!effectiveProjectId) {
+      return res.status(400).json({ status: 'error', raw: { message: 'project_id missing (body or GOTOORBIT_PROJECT_ID)' } });
+    }
+
+    console.log('🚫 [gotoOrbit] reject-mcp-tool called:', {
+      approval_key: approval_key.substring(0, 20) + '...',
+      project_id: effectiveProjectId
+    });
+
+    // Call the internal reject-mcp-tool endpoint
+    try {
+      const response = await fetch(`http://127.0.0.1:${PORT}/api/project/reject-mcp-tool`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: req.headers.cookie || ''
+        },
+        body: JSON.stringify({
+          approval_key,
+          project_id: effectiveProjectId
+        })
+      });
+
+      const result = await response.json().catch(() => ({
+        status: 'error',
+        raw: { message: 'Failed to parse reject-mcp-tool response' }
+      }));
+
+      if (!response.ok) {
+        return res.status(response.status).json(result);
+      }
+
+      res.json(result);
+    } catch (fetchError) {
+      if (fetchError.response) {
+        return res.status(fetchError.response.status).json(fetchError.response.data);
+      }
+      throw fetchError;
+    }
+  } catch (error) {
+    console.error('❌ [gotoOrbit] Error rejecting MCP tool:', error);
+    res.status(500).json({ status: 'error', raw: { message: 'Failed to reject tool execution', error: error.message } });
+  }
+});
+
 // ============================================================================
 // Kanban Board API Routes
 // ============================================================================
@@ -521,6 +672,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   GET    /gotoorbit/approve`);
   console.log(`   POST   /gotoorbit/api/approve-ai`);
   console.log(`   POST   /gotoorbit/api/reject-ai`);
+  console.log(`   GET    /gotoorbit/mcp-approve`);
+  console.log(`   POST   /gotoorbit/api/approve-mcp-tool`);
+  console.log(`   POST   /gotoorbit/api/reject-mcp-tool`);
 });
 
 module.exports = app;
