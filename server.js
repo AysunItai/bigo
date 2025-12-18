@@ -396,7 +396,7 @@ app.post('/gotoorbit/api/approve-mcp-tool', async (req, res) => {
     // This allows user's app to implement /gotoorbit/api/approve-mcp-tool
     // and call Orbit's /api/project/execute-mcp-tool (similar to execute-macro pattern)
     try {
-      const response = await fetch(`http://127.0.0.1:${PORT}/api/project/execute-mcp-tool`, {
+      const response = await fetch(`${GOTOORBIT_API_BASE_URL}/api/project/execute-mcp-tool`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
