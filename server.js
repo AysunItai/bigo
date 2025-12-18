@@ -43,7 +43,7 @@ const QuadrillianConfig = {
   user_id: Number(process.env.QUAD_USER_ID) || 996,
   user_email: process.env.QUAD_USER_EMAIL || 'testtest2@gmail.com',
   user_name: process.env.QUAD_USER_NAME || 'Test user',
-  base_url: process.env.QUAD_BASE_URL || 'http://localhost:8080'
+  base_url: process.env.QUAD_BASE_URL || 'https://eng.quadrillian.com'
 };
 
 if (!QuadrillianConfig.workspace_secret) {
