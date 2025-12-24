@@ -136,7 +136,7 @@ app.get('/', (req, res) => {
 
 // Get chat configuration (public endpoint)
 app.get('/api/chat/config', (req, res) => {
-  const baseUrl = QuadrillianConfig.base_url || 'http://localhost:8080';
+  const baseUrl = QuadrillianConfig.base_url || 'https://eng.quadrillian.com';
   res.json({
     workspace_id: QuadrillianConfig.workspace_id,
     project_id: QuadrillianConfig.project_id,
