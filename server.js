@@ -40,7 +40,7 @@ const QuadrillianConfig = {
   workspace_secret: process.env.QUAD_WORKSPACE_SECRET,
   project_id: Number(process.env.QUAD_PROJECT_ID) || 22,
   ai_user_id: Number(process.env.QUAD_AI_USER_ID) || 2,
-  user_id: Number(process.env.QUAD_USER_ID) || 9999,
+  user_id: Number(process.env.QUAD_USER_ID) || 865,
   user_email: process.env.QUAD_USER_EMAIL || 'aysunhpl@gmail.com',
   user_name: process.env.QUAD_USER_NAME || 'Teams test',
   base_url: process.env.QUAD_BASE_URL || 'https://eng.quadrillian.com'
